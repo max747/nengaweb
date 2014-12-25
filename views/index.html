@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+  <h1 class="sub-header">住所録（最新版）</h1>
+  <div class="table-responsive">
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>氏</th>
+          <th>名</th>
+          <th>追加1</th>
+          <th>追加2</th>
+          <th>郵便番号</th>
+          <th>住所</th>
+          <th>最終更新</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>{{ item.family_name }}</td>
+          <td>{{ item.given_name }}</td>
+          <td>{{ item.joint_name1 }}</td>
+          <td>{{ item.joint_name2 }}</td>
+          <td>{{ item.zipcode }}</td>
+          <td>{{ item.address1 }}<br>{{ item.address2 }}</td>
+          <td>{{ item.last_update }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

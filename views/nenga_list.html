@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+  <h1 class="sub-header">{{ year }}年 年賀状送付リスト</h1>
+  <form method="POST">
+    <div class="table-responsive">
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>送付</th>
+            <th>受領</th>
+            <th>喪中</th>
+            <th>氏</th>
+            <th>名</th>
+            <th>追加1</th>
+            <th>追加2</th>
+            <th>郵便番号</th>
+            <th>住所</th>
+            <th>最終更新</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ item.printing | printing_code }}</td>
+            <td>{{ item.received | received_code }}</td>
+            <td>{{ item.mourning | mourning_code }}</td>
+            <td><a href="{{ url('address_list', person_id=item.address.person_id) }}">{{ item.address.family_name }}</a></td>
+            <td>{{ item.address.given_name }}</td>
+            <td>{{ item.address.joint_name1 }}</td>
+            <td>{{ item.address.joint_name2 }}</td>
+            <td>{{ item.address.zipcode }}</td>
+            <td>{{ item.address.address1 }}<br>{{ item.address.address2 }}</td>
+            <td>{{ item.last_update | datefmt }}</td>
+            <td><input type="checkbox" name="target" value="{{ item.id }}"></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div>
+      チェックした行に対する一括操作:
+      <button name="bulkaction" type="submit" class="btn btn-default" value="printing_0">送付 から外す</button>
+      <button name="bulkaction" type="submit" class="btn btn-default" value="printing_1">送付 にする</button>
+      <button name="bulkaction" type="submit" class="btn btn-default" value="printing_2">後から送付 にする</button>
+      <button name="bulkaction" type="submit" class="btn btn-default" value="received_0">受領 から外す</button>
+      <button name="bulkaction" type="submit" class="btn btn-default" value="received_1">受領 にする</button>
+      <button name="bulkaction" type="submit" class="btn btn-default" value="received_2">後から受領 にする</button>
+      <button name="bulkaction" type="submit" class="btn btn-default" value="mourning_0">喪中 から外す</button>
+      <button name="bulkaction" type="submit" class="btn btn-default" value="mourning_1">喪中 にする</button>
+  </form>
+</div>
+{% endblock %}
