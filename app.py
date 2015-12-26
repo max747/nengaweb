@@ -3,7 +3,6 @@
 from __future__ import absolute_import, unicode_literals, division, print_function
 
 from collections import MutableMapping as DictMixin
-from cStringIO import StringIO
 import csv
 from datetime import datetime
 import functools
@@ -20,6 +19,7 @@ from bottle import (
         redirect,
         request,
     )
+from six import StringIO
 from sqlalchemy import (
         create_engine,
         Column,

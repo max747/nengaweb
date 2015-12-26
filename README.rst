@@ -18,7 +18,7 @@ Require
 -------
 
 * Python 2.7.x
-* Python 3.x での動作は未確認
+* Python 3.4.x
 
 Quickstart
 ----------
