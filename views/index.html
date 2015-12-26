@@ -14,24 +14,36 @@
           <th>追加2</th>
           <th>郵便番号</th>
           <th>住所</th>
+          <th></th>
           <th>最終更新</th>
         </tr>
       </thead>
       <tbody>
         {% for item in items %}
         <tr>
-          <td>{{ loop.index }}</td>
+          <td>{{ item.id }}</td>
           <td>{{ item.family_name }}</td>
           <td>{{ item.given_name }}</td>
-          <td>{{ item.joint_name1 }}</td>
-          <td>{{ item.joint_name2 }}</td>
-          <td>{{ item.zipcode }}</td>
-          <td>{{ item.address1 }}<br>{{ item.address2 }}</td>
+          {% if item.available %}
+          <td>{{ item.available.address.joint_name1 }}</td>
+          <td>{{ item.available.address.joint_name2 }}</td>
+          <td>{{ item.available.address.zipcode }}</td>
+          <td>{{ item.available.address.address1 }}<br>{{ item.available.address.address2 }}</td>
+          {% else %}
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          {% endif %}
+          <td><a class="btn btn-default" role="button" href="{{ url('address_list', person_id=item.id) }}">詳細</a></td>
           <td>{{ item.last_update }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
+  </div>
+  <div>
+    <a class="btn btn-default" role="button" href="{{ url('person_add_page') }}">個人を追加</a>
   </div>
 </div>
 {% endblock %}

@@ -3,7 +3,6 @@
 {% block content %}
 <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
   <h1 class="sub-header">住所録（最新版）</h1>
-  <form method="POST">
     <div class="table-responsive">
       <table class="table table-striped">
         <thead>
@@ -24,7 +23,7 @@
           {% for item in items %}
           <tr>
             <td>{{ loop.index }}</td>
-            <td>{{ item.disabled | enabled_mark }}</td>
+            <td>{{ item.available | enabled_mark }}</td>
             <td>{{ item.family_name }}</td>
             <td>{{ item.given_name }}</td>
             <td>{{ item.joint_name1 }}</td>
@@ -33,17 +32,17 @@
             <td>{{ item.address1 }}<br>{{ item.address2 }}</td>
             <td>{{ item.last_update }}</td>
             <td>
-              <button type="submit" name="action" class="btn btn-default" value="enable_{{ item.id }}">この住所を使う</button>
-              <button type="submit" name="action" class="btn btn-default" value="copy_{{ item.id }}">コピーして編集</button>
+              <form method="POST" action="{{ url('address_action', person_id=person_id) }}">
+                <input type="hidden" name="chosen" value="{{ item.id }}">
+                <button type="submit" name="action" value="activate" class="btn btn-primary">この住所を使う</button>
+                <button type="submit" name="action" value="delete" class="btn btn-danger">削除</button>
+              </form>
             </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
-  </form>
-  <form action="" method="POST">
-    <button class="btn btn-default">新しい住所を登録</button>
-  </form>
+  <a class="btn btn-default" role="button" href="{{ url('address_add', person_id=person_id) }}">新しい住所を登録</a>
 </div>
 {% endblock %}

@@ -30,6 +30,7 @@ from sqlalchemy import (
     )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import (
+        joinedload,
         sessionmaker,
         relationship,
     )
@@ -49,12 +50,12 @@ Base = declarative_base()
 ######
 #
 # スキーマ構造
-#   - Person  ... 人に対応。一度作られたら変化しない。
-#   - Address ... 住所に対応。引っ越しなどで変化しうる。Person と 1-N の関係。
-#                 有効なのは最新の Address のみだが、履歴管理のため古い Address も残り続ける。
-#   - Nenga   ... 年賀状に対応。毎年作られる。出さない場合も作られる。
-#                 出さなかった、来なかった、のステータスも記録するため。
-#   - Year    ... 年に対応。サイドメニュー表示とデータロックに使う。
+#   - Person           ... 人に対応。一度作られたら変化しない。
+#   - Address          ... 住所に対応。引っ越しなどで変化しうる。Person と 1-N の関係。
+#   - AvailableAddress ... 現在有効な Address を指す。Person と 1-1 の関係。
+#   - Nenga            ... 年賀状に対応。毎年作られる。出さない場合も作られる。
+#                          出さなかった、来なかった、のステータスも記録するため。
+#   - Year             ... 年に対応。サイドメニュー表示とデータロックに使う。
 #
 
 class Person(Base):
@@ -67,6 +68,8 @@ class Person(Base):
     # 今後、確実に年賀状を出さないであろう人には 1 を設定。
     disabled = Column(Integer, nullable=False)
     last_update = Column(DateTime, nullable=False, default=datetime.now(), onupdate=datetime.now())
+    addresses = relationship("Address", back_populates="person")
+    available = relationship("AvailableAddress", back_populates="person", uselist=False)
 
 
 class Address(Base):
@@ -81,11 +84,19 @@ class Address(Base):
     zipcode = Column(String(7), nullable=False)
     address1 = Column(String(100), nullable=False)
     address2 = Column(String(100), nullable=True)
-    # 0: アクティブ, 1: 無効
-    # 現在有効な住所は 0, 現在無効な住所は 1 を設定。
-    disabled = Column(Integer, nullable=False)
     last_update = Column(DateTime, nullable=False, default=datetime.now(), onupdate=datetime.now())
-    person = relationship("Person", backref="address")
+    person = relationship("Person", back_populates="addresses")
+    available = relationship("AvailableAddress", back_populates="address", uselist=False)
+
+
+class AvailableAddress(Base):
+    __tablename__ = "available_addresses"
+
+    person_id = Column(Integer, ForeignKey("people.id"), primary_key=True)
+    address_id = Column(Integer, ForeignKey("addresses.id"), nullable=False)
+    last_update = Column(DateTime, nullable=False, default=datetime.now(), onupdate=datetime.now())
+    person = relationship("Person", back_populates="available", uselist=False)
+    address = relationship("Address", back_populates="available", uselist=False)
 
 
 class Nenga(Base):
@@ -130,7 +141,7 @@ def init_nextyear(args):
     session.add(y)
     session.commit()
 
-    candidates = session.query(Address).filter_by(disabled=0).order_by(Address.id).all()
+    candidates = session.query(Address).join(Address.available).order_by(Address.id).all()
     for candidate in candidates:
         n = Nenga()
         n.address_id = candidate.id
@@ -151,11 +162,18 @@ def code_to_value(code, dic):
         return dic[c]
     return code
 
+
+def if_not_none(value, not_none_symbol, none_symbol):
+    if value is None:
+        return none_symbol
+    return not_none_symbol
+
+
 # jinja2 custom filters
 printing_code = functools.partial(code_to_value, dic={0: "", 1: "○", 2 :"△"})
 received_code = functools.partial(code_to_value, dic={0: "", 1: "○", 2 :"△"})
 mourning_code = functools.partial(code_to_value, dic={0: "", 1: "○"})
-enabled_mark = functools.partial(code_to_value, dic={0: "○", 2: ""})
+enabled_mark = functools.partial(if_not_none, not_none_symbol="○", none_symbol="")
 
 
 def dateformat(dt, fmt="%Y-%m-%d %H:%M:%S"):
@@ -193,7 +211,11 @@ view = functools.partial(jinja2_view,
 @view("index.html")
 @care_sidebar
 def index():
-    items = session.query(Address).filter_by(disabled=0).order_by(Address.id).all()
+    items = session.query(Person).\
+                options(joinedload(Person.available)).\
+                options(joinedload(Person.addresses)).\
+                filter(Person.disabled==0).\
+                order_by(Person.id).all()
     return dict(items=items)
 
 
@@ -201,14 +223,17 @@ def index():
 @view("nenga_list.html")
 @care_sidebar
 def nenga_list(year):
-    items = session.query(Nenga).filter_by(year=year).order_by(Nenga.id).all()
+    items = session.query(Nenga).\
+                options(joinedload(Nenga.address)).\
+                filter_by(year=year).\
+                order_by(Nenga.id).\
+                all()
     return dict(year=year, items=items)
 
 
 @post("/nenga/list/<year:int>", name="nenga_bulk_edit")
-@care_sidebar
 def nenga_bulk_edit(year):
-    action = request.forms.get("bulkaction")
+    action = request.forms.bulkaction
     # submit ボタンの value 値はあらかじめ
     # "<column_name>_<column_value>" になるように構成しておく
     column_name, value = action.split("_")
@@ -218,23 +243,106 @@ def nenga_bulk_edit(year):
     column = getattr(Nenga, column_name)
     targets.update({column: int(value)}, synchronize_session=False)
     session.commit()
-    return redirect(url('nenga_list', year=year))
+    return redirect(url("nenga_list", year=year))
+
+
+@get("/person/add", name="person_add_page")
+@view("person_add.html")
+@care_sidebar
+def person_add_page():
+    return dict()
+
+
+@post("/person/add", name="person_add")
+def person_add():
+    p = Person()
+    p.family_name = request.forms.family_name
+    p.given_name = request.forms.given_name
+    p.disabled = 0
+    session.add(p)
+    session.commit()
+    return redirect(url("index"))
 
 
 @get("/person/<person_id:int>/address/list", name="address_list")
 @view("address_list.html")
 @care_sidebar
 def address_list(person_id):
-    items = session.query(Address).filter_by(person_id=person_id).order_by(Address.id)
-    return dict(items=items)
+    items = session.query(Address).\
+                options(joinedload(Address.available)).\
+                filter_by(person_id=person_id).\
+                order_by(Address.id)
+    return dict(person_id=person_id, items=items)
 
 
-@get("/address/<address_id:int>/edit", name="address_edit")
-@view("address_edit.html")
+@get("/person/<person_id:int>/address/add", name="address_add_page")
+@view("address_add.html")
 @care_sidebar
-def address_edit_page(address_id):
-    item = session.query(Address).filter_by(id=address_id).one()
-    return dict(item=item)
+def address_add_page(person_id):
+    p = session.query(Person).filter_by(id=person_id).one()
+    addr = Address()
+    addr.person_id = p.id
+    addr.family_name = p.family_name
+    addr.given_name = p.given_name
+    addr.joint_name1 = ""
+    addr.joint_name2 = ""
+    addr.zipcode = ""
+    addr.address1 = ""
+    addr.address2 = ""
+    return dict(item=addr)
+
+
+@post("/person/<person_id:int>/address/add", name="address_add")
+def address_add(person_id):
+    addr = Address()
+    addr.person_id = person_id
+    addr.family_name = request.forms.family_name
+    addr.given_name = request.forms.given_name
+    addr.joint_name1 = request.forms.joint_name1
+    addr.joint_name2 = request.forms.joint_name2
+    addr.zipcode = request.forms.zipcode
+    addr.address1 = request.forms.address1
+    addr.address2 = request.forms.address2
+    session.add(addr)
+    session.commit()
+    return redirect(url("address_list", person_id=person_id))
+
+
+@post("/person/<person_id:int>/address/action", name="address_action")
+def address_action(person_id):
+    action = request.forms.action
+    if action == "activate":
+        return address_activate(person_id)
+    elif action == "delete":
+        return address_delete(person_id)
+    else:
+        raise ValueError("invalid action:", action)
+
+
+def address_activate(person_id):
+    chosen_id = int(request.forms.chosen)
+    addrs = session.query(Address).filter_by(person_id=person_id).all()
+    for addr in addrs:
+        if addr.id == chosen_id:
+            available = session.query(AvailableAddress).filter_by(person_id=person_id).first()
+            if available is None:
+                available = AvailableAddress()
+                available.person_id = person_id
+            available.address_id = addr.id
+            session.add(available)
+            session.commit()
+
+    return redirect(url("address_list", person_id=person_id))
+
+
+def address_delete(person_id):
+    chosen_id = int(request.forms.chosen)
+    addr = session.query(Address).filter_by(id=chosen_id).one()
+    if addr.available:
+        return redirect(url("address_list", person_id=person_id))
+    session.delete(addr)
+    session.commit()
+    return redirect(url("address_list", person_id=person_id))
 
 
 @get("/nenga/<nenga_id:int>/edit", name="nenga_edit")

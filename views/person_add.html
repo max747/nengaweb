@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% macro input(name, label, value='', maxlength='', type='text') -%}
+<div class="form-group">
+  <label>{{ label }}</label>
+  <input type="{{ type }}" name="{{ name }}" class="form-control" value="{{ value|e }}" maxlength="{{ maxlength }}">
+</div>
+{%- endmacro %}
+
+{% block content %}
+<div class="col-sm-9 col-sm-offset-3 col-md-6 col-md-offset-2 main">
+  <h1 class="sub-header">個人の追加</h1>
+  <form method="POST">
+    {{ input('family_name', '氏', maxlength=20) }}
+    {{ input('given_name', '名', maxlength=20) }}
+    <button type="submit" class="btn btn-danger">追加</button>
+  </form>
+</div>
+{% endblock %}

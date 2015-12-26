@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% macro input(name, label, value='', maxlength='', type='text') -%}
+<div class="form-group">
+  <label>{{ label }}</label>
+  <input type="{{ type }}" name="{{ name }}" class="form-control" value="{{ value|e }}" maxlength="{{ maxlength }}">
+</div>
+{%- endmacro %}
+
+{% block content %}
+<div class="col-sm-9 col-sm-offset-3 col-md-6 col-md-offset-2 main">
+  <h1 class="sub-header">宛名、住所の追加</h1>
+  <form method="POST">
+    {{ input('family_name', '氏', item.family_name, 20) }}
+    {{ input('given_name', '名', item.given_name, 20) }}
+    {{ input('joint_name1', '追加1', item.joint_name1, 20) }}
+    {{ input('joint_name2', '追加2', item.joint_name2, 20) }}
+    {{ input('zipcode', '郵便番号', item.zipcode, 7) }}
+    {{ input('address1', '住所1', item.address1, 100) }}
+    {{ input('address2', '住所2', item.address2, 100) }}
+    <input type="hidden" name="id" value="{{ item.id }}">
+    <button type="submit" class="btn btn-danger">追加</button>
+  </form>
+</div>
+{% endblock %}
